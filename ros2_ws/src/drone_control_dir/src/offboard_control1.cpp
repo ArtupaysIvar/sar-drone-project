@@ -40,8 +40,6 @@ private:
     rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr gps_own_sub;
     rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr gps_follower_sub;
     
-
-
     // copy dari state machine
     enum class OffboardState {
     INIT,

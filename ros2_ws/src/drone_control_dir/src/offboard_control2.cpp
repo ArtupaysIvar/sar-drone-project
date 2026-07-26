@@ -193,7 +193,7 @@ void DistanceStepDrone2::gps_lead_callback(const px4_msgs::msg::VehicleGlobalPos
         lead_global_pos_3d.x(), lead_global_pos_3d.y(), lead_global_pos_3d.z());
 }
 
-    void DistanceStepDrone2::relative_setpoint(){
+void DistanceStepDrone2::relative_setpoint(){
     offboard_control_mode();
 
     if (setpoint_counter_ < 10) {
