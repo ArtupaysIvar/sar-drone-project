@@ -1,0 +1,99 @@
+RPI:
+H264 below 150 kb/s, agak berat
+gst-launch-1.0 v4l2src device=/dev/video0 ! "image/jpeg,width=640,height=480,framerate=30/1" ! jpegdec ! videoconvert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1,video_bitrate=1000000" ! "video/x-h264,level=(string)4" ! h264parse ! rtph264pay ! udpsink host=10.128.121.64 port=5000 sync=false
+
+H264 around 300-500 kb/s, pure gpu
+gst-launch-1.0 v4l2src device=/dev/video0 ! "video/x-raw,format=YUY2,width=640,height=480,framerate=30/1" ! videoconvert ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! "video/x-h264,level=(string)4" ! h264parse ! rtph264pay ! udpsink host=10.128.121.64 port=5000 sync=false
+
+MJPEG around 1 mb, ringan
+gst-launch-1.0 v4l2src device=/dev/video0 ! "image/jpeg,width=640,height=480,framerate=30/1" ! rtpjpegpay ! udpsink host=10.128.121.64 port=5000 sync=false
+
+PC stream:
+H264:
+gst-launch-1.0 udpsrc port=5000 caps="application/x-rtp,encoding-name=H264,payload=96" ! rtph264depay ! h264parse ! avdec_h264 ! autovideosink
+
+MJPEG: 
+gst-launch-1.0 udpsrc port=5000 caps="application/x-rtp,encoding-name=JPEG,payload=26" ! rtpjpegdepay ! jpegdec ! autovideosink
+
+PC stream + record:
+h264 berwarna:
+gst-launch-1.0 udpsrc port=5000 caps="application/x-rtp,encoding-name=H264,payload=96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! tee name=t t. ! queue ! autovideosink sync=false t. ! queue ! matroskamux ! filesink location=/home/ravi/Videos/recording.mkv
+
+MJPEG:
+gst-launch-1.0 udpsrc port=5000 caps="application/x-rtp,encoding-name=JPEG,payload=26" ! rtpjpegdepay ! tee name=t t. ! queue ! jpegdec ! videoconvert ! autovideosink sync=false t. ! queue ! matroskamux ! filesink location=/home/dronepc/Videos/recording.mkv
+
+IN PC (dev/video10 setup):
+H264:
+gst-launch-1.0 \
+udpsrc port=5000 caps="application/x-rtp,media=video,encoding-name=H264,payload=96" \
+! rtph264depay \
+! avdec_h264 \
+! videoconvert \
+! v4l2sink device=/dev/video10
+
+MJPEG: (STILL NOT WORKING)
+gst-launch-1.0 \
+udpsrc port=5000 caps="application/x-rtp,media=video,encoding-name=JPEG,payload=26" \
+! rtpjpegdepay \
+! jpegdec \
+! videoconvert \
+! "video/x-raw,format=YUY2" \
+! v4l2sink device=/dev/video10
+
+sudo rmmod v4l2loopback
+sudo modprobe -r v4l2loopback
+sudo modprobe v4l2loopback \
+    devices=2 \
+    video_nr=10,11 \
+    card_label="DroneStream1,DroneStream2" \
+    exclusive_caps=1
+or
+sudo modprobe v4l2loopback video_nr=10 card_label="DroneStream1" exclusive_caps=1
+or
+sudo modprobe v4l2loopback video_nr=10,11 card_label="DroneStream1", "DroneStream2"
+
+v4l2-ctl --list-devices
+
+USING RASPI CAM OV5647:
+in raspi:
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 gst-launch-1.0 libcamerasrc ! video/x-raw,width=720,height=480,framerate=30/1 ! videoconvert ! x264enc tune=zerolatency bitrate=3000 speed-preset=ultrafast ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.137.16 port=5600
+
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 gst-launch-1.0 libcamerasrc ! video/x-raw,width=1280,height=720,framerate=30/1 ! videoconvert ! x264enc tune=zerolatency bitrate=5000 speed-preset=ultrafast ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.137.16 port=5600
+
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 gst-launch-1.0 libcamerasrc ! video/x-raw,width=1280,height=720,framerate=30/1 ! videoconvert ! x264enc tune=zerolatency bitrate=5000 speed-preset=ultrafast ! rtph264pay config-interval=1 pt=96 ! udpsink host=192.168.137.16 port=5600 sync=false
+
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 \
+gst-launch-1.0 -v \
+    libcamerasrc ! \
+    "video/x-raw,width=1280,height=720,framerate=30/1,format=NV12" ! \
+    v4l2convert ! \
+    v4l2h264enc extra-controls="controls,repeat_sequence_header=1" ! \
+    "video/x-h264,level=(string)4" ! \
+    h264parse ! \
+    rtph264pay config-interval=1 pt=96 ! \
+    udpsink host=192.168.137.16 port=5600 sync=false
+
+VERY HIGH BANDWIDTH:
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 \
+gst-launch-1.0 -v \
+    libcamerasrc ! \
+    "video/x-raw,width=1280,height=720,framerate=30/1,format=NV12" ! \
+    v4l2convert ! \
+    v4l2h264enc extra-controls="controls,repeat_sequence_header=1,h264_i_frame_period=30,video_bitrate_mode=0,video_bitrate=20000000,h264_profile=4,h264_minimum_qp_value=16,h264_maximum_qp_value=26" ! \
+    "video/x-h264,level=(string)4.2,profile=high" ! \
+    h264parse ! \
+    rtph264pay config-interval=1 pt=96 ! \
+    udpsink host=192.168.137.58 port=5000 sync=false
+
+in pc:
+gst-launch-1.0 udpsrc port=5600 caps="application/x-rtp,media=video,encoding-name=H264,payload=96" ! rtph264depay ! avdec_h264 ! videoconvert ! v4l2sink device=/dev/video10
+
+
+v4l2-ctl --list-formats-ext -d /dev/video0
+
+sudo nmcli device wifi connect "sportHub" password "sportScience123"
+
+v4l2h264enc extra-controls="controls,repeat_sequence_header=1,h264_i_frame_period=30"
+
+/home/dronepc/ultralytics_venv/bin/python /home/dronepc/YOLO_det_dir/gstrimer.py
+/home/dronepc/ultralytics_venv/bin/python /home/dronepc/YOLO_det_dir/gstrimer2.py
