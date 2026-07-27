@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 import cv2
+import torch
 from ultralytics import YOLO
+from datetime import datetime
+import os
 # import time
 
 # ==========================
@@ -9,8 +12,23 @@ from ultralytics import YOLO
 # ==========================
 
 
-MODEL_PATH = "yolov8n.pt"
-OUTPUT_FILE = "/home/dronepc/Videos/rec_yolo.mkv"
+MODEL_PATH = "YOLO_stream_dir/yolov8n.pt"
+# OUTPUT_FILE = "/home/dronepc/Videos/cc_yolo.mkv"
+
+OUTPUT_DIR = "/home/dronepc/Videos"
+
+# Create directory if it doesn't exist
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Format: 2026-07-27_14-35-08
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+OUTPUT_FILE = os.path.join(
+    OUTPUT_DIR,
+    f"digitalraspicam_yolo_{timestamp}.mkv"
+)
+
+print(f"Saving video to: {OUTPUT_FILE}")
 
 # ==========================
 # GSTREAMER PIPELINES
@@ -40,7 +58,7 @@ OUTPUT_FILE = "/home/dronepc/Videos/rec_yolo.mkv"
 
 # cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
 
-cap = cv2.VideoCapture("/dev/video3")
+cap = cv2.VideoCapture("/dev/video10")
 if not cap.isOpened():
     raise RuntimeError("Failed to open stream")
 
@@ -93,11 +111,14 @@ while True:
 
     # IMPORTANT:
     # NO RESIZING
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     results = model.predict(
         source=frame,
         verbose=False,
         classes = [0],
-        device = "cuda"
+        device = device
     )
 
     annotated = results[0].plot()

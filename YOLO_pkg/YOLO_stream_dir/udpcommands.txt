@@ -97,3 +97,6 @@ v4l2h264enc extra-controls="controls,repeat_sequence_header=1,h264_i_frame_perio
 
 /home/dronepc/ultralytics_venv/bin/python /home/dronepc/YOLO_det_dir/gstrimer.py
 /home/dronepc/ultralytics_venv/bin/python /home/dronepc/YOLO_det_dir/gstrimer2.py
+
+local storage:
+sudo -E GST_PLUGIN_PATH=/usr/local/lib/aarch64-linux-gnu/gstreamer-1.0 GST_DEBUG=2 gst-launch-1.0 -e -v     libcamerasrc !     "video/x-raw,width=1280,height=720,framerate=30/1,format=NV12" !     v4l2convert !     v4l2h264enc extra-controls="controls,repeat_sequence_header=1" !     "video/x-h264,level=(string)4" !     h264parse !     mp4mux !     filesink location=/home/drone2rpi/ruc_$(date +%Y%m%d_%H%M%S).mp4
